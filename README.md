@@ -13,26 +13,20 @@
 
 ---
 
-## 📌 Características Principales
+## Características Principales
 
-- ⚡ **Interfaz Moderna:** Diseñada con QML para una experiencia fluida y reactiva.
-- 🐍 **Lógica en Python:** Separación clara entre el backend en Python y la interfaz gráfica.
-- 🗄️ **Almacenamiento Local y en la Nube:** Gestión de datos rápida e integrada mediante SQLite3 y PostgreSQL.
-- 🎨 **Multiplataforma:** Compatible con Windows, Linux y macOS.
-
----
-
-## 🖼️ Capturas de Pantalla (Próximamente)
-
-> *Añade aquí imágenes o un GIF de tu aplicación en funcionamiento.*
-
-| Pantalla Principal | Configuración / Detalle |
-| :---: | :---: |
-| ![Main Screen](https://via.placeholder.com/400x250?text=Vista+Principal) | ![Settings Screen](https://via.placeholder.com/400x250?text=Vista+Secundaria) |
+- **Interfaz Moderna:** Diseñada con QML para una experiencia fluida y reactiva.
+- **Lógica en Python:** Separación clara entre el backend en Python y la interfaz gráfica.
+- **Almacenamiento Local y en la Nube:** Gestión de datos rápida e integrada mediante SQLite3 y PostgreSQL.
+- **Multiplataforma:** Compatible con Windows, Linux y macOS.
 
 ---
 
-## 🛠️ Requisitos Previos
+## Capturas de Pantalla (Próximamente)
+
+---
+
+## Requisitos Previos
 
 Asegúrate de tener instalado:
 
@@ -41,7 +35,7 @@ Asegúrate de tener instalado:
 
 ---
 
-## ⚙️ Instalación y Configuración
+## Instalación y Configuración
 
 Sigue estos pasos para ejecutar el proyecto en tu entorno local:
 
