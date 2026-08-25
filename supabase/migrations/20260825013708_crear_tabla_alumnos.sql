@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS alumnos (
+    id UUID PRIMARY KEY,
+    dni TEXT UNIQUE NOT NULL,
+    nombre TEXT NOT NULL,
+    apellido TEXT NOT NULL,
+    telefono TEXT,
+    colegio TEXT,
+    año TEXT,
+    telefono_madre TEXT,
+    telefono_padre TEXT,
+    localidad TEXT,
+    calle TEXT,
+    numero TEXT,
+    manzana TEXT,
+    barrio TEXT,
+    piso TEXT,
+    departamento TEXT,
+    email TEXT,
+    ingresante TEXT NOT NULL,
+    recursante TEXT NOT NULL,
+    estado TEXT DEFAULT 'ACTIVO',
+    fecha_registro TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+)
