@@ -1,13 +1,14 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
+import "views/"
 
-Window {
-    id: root
+ApplicationWindow {
+    id: window
     visible: true
-    width: 800
-    height: 600
-    title: "Demo Offline-First"
-    color: "#2b2b2b"
+    width: 1000
+    height: 700
+    title: "Gestión de Alumnos - v" + (backend ? "0.9.9" : "Demo")
     opacity: 0.0
 
     Behavior on opacity {
@@ -21,89 +22,131 @@ Window {
         opacity = 1.0
     }
 
-    Column {
-        anchors.fill: parent
-        anchors.margins: 20
-        spacing: 15
+    Connections {
+        target: backend
 
-        Text {
-            text: "Registro de Alumnos"
-            color: "black"
-            font.pixelSize: 24
-            font.bold: true
+        function onOperacionCompletada(categoría, mensaje) {
+            notificacionTexto.text = "[" + categoría + "]" + mensaje
+            notificacion.open
         }
 
-        Row {
-            spacing: 10
-            width: parent.width
+        function onErrorOcurrido(mensaje) {
+            notificacionTexto.text = "ERROR: " + mensaje
+            notificacion.open
+        }
+    }
 
-            TextField {
-                id:inputDni
-                placeholderText: "DNI"
-                width: 120
+    header: ToolBar {
+        RowLayout {
+            anchors.fill: parent
+
+            ToolButton {
+                text: "☰"
+                font.pixelSize: 20
+                onClicked: drawer.open()
             }
 
-            TextField {
-                id: inputNombre
-                placeholderText: "Nombre del alumno"
-                width: parent.width - 240
+            Label {
+                text: "Gestión Administrativa"
+                font.pixelSize: 16
+                font.bold: true
+                Layout.fillWidth: true
             }
-        
+
             Button {
-                text: "Guardar"
-                width: 100
-                onClicked: {
-                    if (inputNombre.text !== "" && inputDni.text !== "") {
-                        backend.agregar_alumno(inputDni.text, inputNombre.text, "Perez", "correo@ejemplo.com")
-                        inputNombre.text = ""
-                        inputDni.text = ""
-                    }
-                }
+                text: "☁ Sincronizar"
+                onClicked: backend.sincronizar_manual()
             }
         }
+    }
 
-        Button {
-            text: "Sincronizar Manualmente"
-            width: parent.width
-            onClicked: backend.sincronizar_manual()
-        }
+    Drawer {
+        id: drawer
+        width: 240
+        height: window.height
 
-        Text {
-            text: "Estado en SQLite Local:"
-            font.bold: true
-        }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
 
-        ListView {
-            width: parent.width
-            height: 250
-            clip: true
-            model: backend.alumnos
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+                color: "#1E88E5"
 
-            delegate: Rectangle {
-                width: ListView.view.width
-                height: 40
-                color: "#f4f4f4"
-                border.color: "#ccc"
-                radius: 4
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 5
 
-                Row {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 10
-
-                    Text {
-                        text: modelData.nombre
-                        font.pixelSize: 14
-                        width: parent.width - 110
-                    }
-
-                    Text {
-                        text: modelData.sincronizado ? "Sincronizado" : "Pendiente"
-                        color: modelData.sincronizado ? "green" : "orange"
+                    Label {
+                        text: "Panel de Control"
+                        color: "white"
+                        font.pixelSize: 18
                         font.bold: true
                     }
+
+                    Label {
+                        text: "Offline-First Mode"
+                        color: "#BBDEFB"
+                        font.pixelSize: 12
+                    }
                 }
             }
+
+            ItemDelegate {
+                text: "Alumnos"
+                Layout.fillWidth: true
+
+                onClicked: {
+                    stackView.replace("views/AlumnosView.qml")
+                    drawer.close()
+                }
+            }
+
+            ItemDelegate {
+                text: "Contratos"
+                Layout.fillWidth: true
+                onClicked: {
+                    stackView.replace("views/ContratosView.qml")
+                    drawer.close()
+                }
+            }
+
+            ItemDelegate {
+                text: "Pagos"
+                Layout.fillWidth: true
+                onClicked: {
+                    stackView.replace("views/PagosView.qml")
+                    drawer.close()
+                }
+            }
+
+            Item {
+                Layout.fillHeight: true
+            }
+        }
+    }
+
+    StackView {
+        id: stackView
+        anchors.fill: parent
+        initialItem: "views/AlumnosView.qml"
+    }
+
+    Popup {
+        id: notificacion
+        x: (parent.width - width) / 2
+        y: parent.height - height - 20
+        width: 350
+        height: 50
+        modal: false
+        focus: false
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Label {
+            id: notificacionTexto
+            anchors.centerIn: parent
+            font.pixelSize: 13
         }
     }
 }

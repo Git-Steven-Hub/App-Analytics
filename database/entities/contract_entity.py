@@ -3,7 +3,7 @@ from typing import Optional
 
 @dataclass
 class Contract:
-    alumno_id: int
+    alumno_id: str
     universidad: str
     carrera: str
     total: float

@@ -19,7 +19,8 @@ class SyncService:
         await loop.run_in_executor(None, self._sync_pagos)
         
     def _sync_alumnos(self):
-        cursor = self.db.connection.cursor()
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
         
         cursor.execute('''
             SELECT *
@@ -40,17 +41,19 @@ class SyncService:
                     cursor.execute('''
                         UPDATE alumnos
                         SET sincronizado = 1
-                        WHERE id = ?''',
+                        WHERE id = ?
+                        ''',
                         (data["id"],)
                     )
                     
-                    self.db.connection.commit()
+                    conn.commit()
             
             except Exception as e:
                 print(f"Error sincronizando alumno {data['id']}: {e}")
     
     def _sync_contratos(self):
-        cursor = self.db.connection.cursor()
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
         
         cursor.execute('''
             SELECT *
@@ -71,17 +74,19 @@ class SyncService:
                     cursor.execute('''
                         UPDATE contratos
                         SET sincronizado = 1
-                        WHERE id = ?''',
+                        WHERE id = ?
+                        ''',
                         (data["id"],)
                     )
                     
-                    self.db.connection.commit()
+                    conn.commit()
             
             except Exception as e:
                 print(f"Error sincronizando contrato {data['id']}: {e}")
     
     def _sync_cuotas(self):
-        cursor = self.db.connection.cursor()
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
                 
         cursor.execute('''
             SELECT *
@@ -102,17 +107,19 @@ class SyncService:
                     cursor.execute('''
                         UPDATE cuotas
                         SET sincronizado = 1
-                        WHERE id = ?''',
+                        WHERE id = ?
+                        ''',
                         (data["id"],)
                     )
                     
-                    self.db.connection.commit()
+                    conn.commit()
             
             except Exception as e:
                 print(f"Error sincronizando cuota {data['id']}: {e}")
     
     def _sync_pagos(self):
-        cursor = self.db.connection.cursor()
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
                 
         cursor.execute('''
             SELECT *
@@ -133,11 +140,12 @@ class SyncService:
                     cursor.execute('''
                         UPDATE pagos
                         SET sincronizado = 1
-                        WHERE id = ?''',
+                        WHERE id = ?
+                        ''',
                         (data["id"],)
                     )
                     
-                    self.db.connection.commit()
+                    conn.commit()
             
             except Exception as e:
                 print(f"Error sincronizando pago {data['id']}: {e}")

@@ -17,8 +17,9 @@ class Student:
     barrio: str = ""
     manzana: str = ""
     estado: str = "ACTIVO"
+    sincronizado: int = 0
     
-    id: Optional[int] = None
+    id: Optional[str] = None
     colegio: Optional[str] = None
     año: Optional[str] = None
     telefono_madre: Optional[str] = None
