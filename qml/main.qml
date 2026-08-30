@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "views/"
 
 ApplicationWindow {
     id: window
@@ -27,12 +26,12 @@ ApplicationWindow {
 
         function onOperacionCompletada(categoría, mensaje) {
             notificacionTexto.text = "[" + categoría + "]" + mensaje
-            notificacion.open
+            notificacion.open()
         }
 
         function onErrorOcurrido(mensaje) {
             notificacionTexto.text = "ERROR: " + mensaje
-            notificacion.open
+            notificacion.open()
         }
     }
 
@@ -106,6 +105,7 @@ ApplicationWindow {
             ItemDelegate {
                 text: "Contratos"
                 Layout.fillWidth: true
+                
                 onClicked: {
                     stackView.replace("views/ContratosView.qml")
                     drawer.close()
@@ -115,6 +115,7 @@ ApplicationWindow {
             ItemDelegate {
                 text: "Pagos"
                 Layout.fillWidth: true
+
                 onClicked: {
                     stackView.replace("views/PagosView.qml")
                     drawer.close()
