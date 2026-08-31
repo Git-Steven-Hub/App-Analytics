@@ -3,8 +3,6 @@ import qasync
 from pathlib import Path
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
-from database.connection import DatabaseManager
-from src.student_backend import StudentBackend
 
 def main():
     DatabaseManager()
