@@ -47,10 +47,44 @@ class SupabaseSyncer:
     
     def _sync_dim_coin(self) -> None:
         records = self._fetch_local_data('''
-            SELECT coin_id, currency_code, symbol
+            SELECT coin_id, symbol, name
             FROM dim_coin
         ''')
         
         if records:
-            self.supabase.table("dim_coin").upsert(records, on_conflict="currency_code").execute()
+            self.supabase.table("dim_coin").upsert(records, on_conflict="coin_id").execute()
+            print(f"  └─ dim_coin: {len(records)} registros sincronizados")
+        
+    def _sync_dim_currency(self) -> None:
+        records = self._fetch_local_data('''
+            SELECT currency_id, currency_code, symbol
+            FROM dim_currency
+        ''')
+        
+        if records:
+            self.supabase.table("dim_currency").upsert(records, on_conflict="currency_code").execute()
+            print(f"  └─ dim_currency: {len(records)} registros sincronizados")
+    
+    def _sync_dim_time(self) -> None:
+        records = self._fetch_local_data('''
+            SELECT time_id, timestamp_utc, date_day, hour, day_of_week, month, year
+            FROM dim_time
+        ''')
+        
+        if records:
+            self.supabase.table("dim_time").upsert(records, on_conflict="timestamp_utc").execute()
+            print(f"  └─ dim_time: {len(records)} registros sincronizados")
             
+    def _sync_fact_crypto_price(self) -> None:
+        records = self._fetch_local_data('''
+            SELECT coin_id, time_id, currency_id, price, market_cap, volume_24h, price_change_pct_24h
+            FROM fact_crypto_price
+        ''')
+        
+        if records:
+            self.supabase.table("fact_crypto_price").upsert(records, on_conflict="coin_id, time_id, currency_id").execute()
+            print(f"  └─ fact_crypto_price: {len(records)} registros sincronizados")
+    
+if __name__ == "__main__":
+    syncer = SupabaseSyncer()
+    syncer.sync_all()
