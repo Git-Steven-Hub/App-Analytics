@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from database.connection import DataBase
+from .database.connection import DataBase
 from typing import Any
 
 load_dotenv()
@@ -77,7 +77,7 @@ class SupabaseSyncer:
             
     def _sync_fact_crypto_price(self) -> None:
         records = self._fetch_local_data('''
-            SELECT coin_id, time_id, currency_id, price, market_cap, volume_24h, price_change_pct_24h
+            SELECT coin_id, time_id, currency_id, price, market_cap, volume_24h, price_change_pct_24h, price_change_pct_7d
             FROM fact_crypto_price
         ''')
         

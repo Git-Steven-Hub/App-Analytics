@@ -1,12 +1,19 @@
 import sys
 from pathlib import Path
+from datetime import datetime
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
 from PySide6.QtCore import QObject, Slot, Signal, Property
 from database.connection import DataBase
+from database.entities.crypto_entity import CryptoMetricsDTO, PricePointDTO
 import main as pipeline
 
 class CryptoBridge(QObject):
     
-    dataUpadated = Signal()
+    dataUpdated = Signal()
     statusChanged = Signal(str)
     
     def __init__(self):
@@ -21,12 +28,76 @@ class CryptoBridge(QObject):
     @Slot(result=list)
     def get_latest_prices(self):
         query = '''
-            SELECT c.symbol, c.name, f.price, f.market_cap, f.volume_24h, f.price_change_pct_24h, t.timestamp_utc
+            WITH ranked_prices AS (
+                SELECT c.symbol, c.name, f.price, f.market_cap, f.volume_24h, f.price_change_pct_24h, f.price_change_pct_7d, t.timestamp_utc,
+                ROW_NUMBER() OVER (PARTITION BY f.coin_id ORDER BY t.timestamp_utc DESC) as rn
+                FROM fact_crypto_price f
+                JOIN dim_coin c ON f.coin_id = c.coin_id
+                JOIN dim_time t ON f.time_id = t.time_id
+            )
+            SELECT symbol, name, price, market_cap, volume_24h, price_change_pct_24h, price_change_pct_7d, timestamp_utc
+            FROM ranked_prices
+            WHERE rn = 1
+            ORDER BY price DESC
+        '''
+        
+        conn = self.db.connection
+        cursor = conn.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        metrics = [
+            CryptoMetricsDTO(
+                symbol=row["symbol"],
+                name=row["name"],
+                price_raw=row["price"],
+                market_cap_raw=row["market_cap"],
+                volume_24h_raw=row["volume_24h"],
+                change_24h_raw=row["price_change_pct_24h"],
+                change_7d_raw=row["price_change_pct_7d"],
+                last_updated=row["timestamp_utc"],
+            ).to_dict()
+            for row in rows
+        ]
+        
+        return metrics
+    
+    @Slot()
+    def refresh_pipeline(self):
+        self._status = "Sincronizando..."
+        self.statusChanged.emit(self._status)
+        
+        try:
+            pipeline.run_pipeline()
+            self._status = "Sincronización Exitosa"
+            self.dataUpdated.emit()
+        
+        except Exception as e:
+            self._status = f"Error: {str(e)}"
+        
+        self.statusChanged.emit(self._status)
+    
+    @Slot(str, result=list)
+    def get_price_history(self, symbol: str):
+        query = '''
+            SELECT t.timestamp_utc, f.price
             FROM fact_crypto_price f
             JOIN dim_coin c ON f.coin_id = c.coin_id
             JOIN dim_time t ON f.time_id = t.time_id
-            WHERE t.timestamp_utc = (SELECT MAX(timestamp_utc) FROM dim_time)
-            ORDER BY f.price DESC
+            WHERE c.symbol = ?
+            ORDER BY t.timestamp_utc ASC
         '''
         
-        conn =
+        conn = self.db.connection
+        cursor = conn.cursor()
+        cursor.execute(query, (symbol,))
+        rows = cursor.fetchall()
+        
+        history = []
+        for row in rows:
+            dt = datetime.fromisoformat(row["timestamp_utc"])
+            timestamp_ms = dt.timestamp() * 1000
+            
+            history.append(PricePointDTO(timestamp_ms=timestamp_ms, price=row["price"]).to_dict())
+        
+        return history

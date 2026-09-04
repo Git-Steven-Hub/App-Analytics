@@ -116,6 +116,14 @@ class DataBase:
                     )
                 ''')
                 
+                try:
+                    cursor.execute('''
+                        ALTER TABLE fact_crypto_price ADD COLUMN price_change_pct_7d REAL
+                    ''')
+                
+                except sqlite3.OperationalError:
+                    pass
+                
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_fact_coin_time 
                     ON fact_crypto_price (coin_id, time_id)

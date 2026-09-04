@@ -1,0 +1,2 @@
+ALTER TABLE fact_crypto_price
+ADD COLUMN price_change_pct_7d NUMERIC;

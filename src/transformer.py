@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any
-from database.connection import DataBase
+from .database.connection import DataBase
 
 class CryptoDataTransformer:
     """
@@ -34,7 +34,7 @@ class CryptoDataTransformer:
                 # Asegurar la Dimensión Cripto
                 coin_id = coin_info["slug"] # Usamos el slug como id único
                 self._get_or_create_coin(
-                    conn, 
+                    conn,
                     coin_id=coin_id,
                     symbol=coin_info["symbol"],
                     name=coin_info["name"]
@@ -46,6 +46,7 @@ class CryptoDataTransformer:
                 market_cap = quote.get("market_cap")
                 volume_24h = quote.get("volume_24h")
                 pct_change_24h = quote.get("percent_change_24h")
+                pct_change_7d = quote.get("percent_change_7d")
                 
                 # Parsear el timestamp de la cotización
                 last_updated_str = quote.get("last_updated")
@@ -69,7 +70,8 @@ class CryptoDataTransformer:
                     price=price, 
                     market_cap=market_cap,
                     volume_24h=volume_24h,
-                    pct_change_24h=pct_change_24h
+                    pct_change_24h=pct_change_24h,
+                    pct_change_7d=pct_change_7d
                 )
                 
         print("[OK] Datos transformados y cargados exitosamente en el Model Dimensional")
@@ -147,13 +149,13 @@ class CryptoDataTransformer:
         
         return cursor.lastrowid
     
-    def _insert_fact_price(self, conn, coin_id: str, time_id: int, currency_id: int, price: float, market_cap: float, volume_24h: float, pct_change_24h: float) -> None:
+    def _insert_fact_price(self, conn, coin_id: str, time_id: int, currency_id: int, price: float, market_cap: float, volume_24h: float, pct_change_24h: float, pct_change_7d: float) -> None:
         cursor = conn.cursor()
         
         cursor.execute('''
             INSERT OR IGNORE INTO fact_crypto_price
-            (coin_id, time_id, currency_id, price, market_cap, volume_24h, price_change_pct_24h)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (coin_id, time_id, currency_id, price, market_cap, volume_24h, price_change_pct_24h, price_change_pct_7d)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''',
             (coin_id,
             time_id,
@@ -161,5 +163,6 @@ class CryptoDataTransformer:
             price,
             market_cap,
             volume_24h,
-            pct_change_24h)
+            pct_change_24h,
+            pct_change_7d)
         )

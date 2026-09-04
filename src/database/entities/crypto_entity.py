@@ -10,6 +10,7 @@ class CryptoMetricsDTO:
     market_cap_raw: Optional[float]
     volume_24h_raw: Optional[float]
     change_24h_raw: Optional[float]
+    change_7d_raw: Optional[float]
     last_updated: str
     
     @property
@@ -28,6 +29,11 @@ class CryptoMetricsDTO:
     def change_24h_formatted(self) -> str:
         val = self.change_24h_raw or 0.0
         return f"{val:+.2f}%"
+    
+    @property
+    def change_7d_formatted(self) -> str:
+        val = self.change_7d_raw or 0.0
+        return f"{val:+.2f}%"
 
     @property
     def is_positive(self) -> bool:
@@ -41,6 +47,18 @@ class CryptoMetricsDTO:
             "market_cap" : self.market_cap_formatted,
             "volume_24h" : self.volume_24h_formatted,
             "change_24h" : self.change_24h_formatted,
+            "change_7d" : self.change_7d_formatted,
             "is_positive" : self.is_positive,
             "last_updated" : self.last_updated
+        }
+        
+@dataclass
+class PricePointDTO:
+    timestamp_ms: float
+    price: float
+    
+    def to_dict(self) -> dict:
+        return {
+            "x" : self.timestamp_ms,
+            "y" : self.price
         }
