@@ -33,7 +33,7 @@ def run_historical_backfill(days="365"):
         transformer._get_or_create_coin(conn, coin_id=coin_id, symbol=symbol, name=name)
         conn.commit()
         
-        url = f"https://api.coingecko.com/api/v3/coins/{cg_id}/market_chart"
+        url_chart = f"https://api.coingecko.com/api/v3/coins/{cg_id}/market_chart"
         
         params = {
             "vs_currency" : "usd",
@@ -41,61 +41,107 @@ def run_historical_backfill(days="365"):
             "interval" : "daily"
         }
         
-        response = requests.get(url, params=params, headers=headers)
+        response_chart = requests.get(url_chart, params=params, headers=headers)
         
-        if response.status_code == 429:
+        if response_chart.status_code == 429:
             print("Límite de peticiones de CoinGecko alcanzado. Esperando 60 segundos...")
             time.sleep(60)
-            response = requests.get(url, params=params, headers=headers)
+            response_chart = requests.get(url_chart, params=params, headers=headers)
             
-        if response.status_code != 200:
-            print(f"Error al consultar CoinGecko para {symbol}: {response.status_code} - {response.text}")
-            continue
-            
-        data = response.json()
-        prices = data.get("prices", [])
-        market_caps = dict(data.get("market_caps", []))
-        total_volumes = dict(data.get("total_volumes", []))
+        if response_chart.status_code == 200:
+            data = response_chart.json()
+            prices = data.get("prices", [])
+            market_caps = dict(data.get("market_caps", []))
+            total_volumes = dict(data.get("total_volumes", []))
         
-        print(f"Procesando {len(prices)} registros históricos para {symbol}...")
+            inserted_count = 0
         
-        inserted_count = 0
-        
-        for item in prices:
-            timestamp_ms = item[0]
-            price = item[1]
-            
-            mcap = market_caps.get(timestamp_ms)
-            vol = total_volumes.get(timestamp_ms)
-            
-            dt_utc = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=timezone.utc)
-            
-            time_id = transformer._get_or_create_time(conn, dt_utc)
-            conn.commit()
-            
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT OR IGNORE INTO fact_crypto_price (coin_id, time_id, currency_id, price, market_cap, volume_24h, price_change_pct_24h, price_change_pct_7d)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (coin_id,
-                time_id,
-                currency_id,
-                price,
-                mcap,
-                vol,
-                None,
-                None
+            for item in prices:
+                timestamp_ms = item[0]
+                price = item[1]
+                
+                mcap = market_caps.get(timestamp_ms)
+                vol = total_volumes.get(timestamp_ms)
+                
+                dt_utc = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=timezone.utc)
+                
+                time_id = transformer._get_or_create_time(conn, dt_utc)
+                conn.commit()
+                
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR IGNORE INTO fact_crypto_price (coin_id, time_id, currency_id, price, market_cap, volume_24h, price_change_pct_24h, price_change_pct_7d)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''',
+                    (coin_id,
+                    time_id,
+                    currency_id,
+                    price,
+                    mcap,
+                    vol,
+                    None,
+                    None
+                    )
                 )
-            )
+                
+                if cursor.rowcount > 0:
+                    inserted_count += 1
             
-            if cursor.rowcount > 0:
-                inserted_count += 1
+            conn.commit()
+            print(f"Finalizado {symbol}: {inserted_count} nuevos registros insertados.")
         
-        conn.commit()
-        print(f"Finalizado {symbol}: {inserted_count} nuevos registros insertados.")
+        time.sleep(3)
+        
+        print(f"Obteniendo datos OHLC para {name} ({symbol})...")
+        url_ohlc = f"https://api.coingecko.com/api/v3/coins/{cg_id}/ohlc"
+        params_ohlc = {
+            "vs_currency" : "usd",
+            "days" : days
+        }
+        
+        response_ohlc = requests.get(url_ohlc, params=params_ohlc, headers=headers)
+        
+        if response_ohlc.status_code == 429:
+            print("Límite de peticiones alcanzado. Esperando 60 segundos...")
+            time.sleep(60)
+            response_ohlc = requests.get(url_ohlc, params=params_ohlc, headers=headers)
+            
+        if response_ohlc.status_code == 200:
+            ohlc_data = response_ohlc.json()
+            inserted_ohlc_count = 0
+            
+            for item in ohlc_data:
+                timestamp_ms, open_p, high_p, low_p, close_p = item
+                dt_utc = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=timezone.utc)
+                
+                time_id = transformer._get_or_create_time(conn, dt_utc)
+                
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR IGNORE INTO fact_crypto_ohlc (coin_id, time_id, currency_id, open_price, high_price, low_price, close_price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''',
+                    (coin_id,
+                    time_id,
+                    currency_id,
+                    open_p,
+                    high_p,
+                    low_p,
+                    close_p
+                    )
+                )
+                
+                if cursor.rowcount > 0:
+                    inserted_ohlc_count += 1
+            
+            conn.commit()
+            print(f"Finalizado OHLC {symbol} : {inserted_ohlc_count} registros insertados")
+        
+        else:
+            print(f"Error al consultar OHLC para {symbol} : {response_ohlc.status_code}")
         
         time.sleep(5)
+
     
     print("\nIniciando sincronización masiva con Supabase...")
     syncer = SupabaseSyncer()

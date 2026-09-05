@@ -101,3 +101,44 @@ class CryptoBridge(QObject):
             history.append(PricePointDTO(timestamp_ms=timestamp_ms, price=row["price"]).to_dict())
         
         return history
+
+    @Slot(str, result=list)
+    def get_ohlc_history(self, symbol: str):
+        query = '''
+            SELECT t.timestamp_utc, o.open_price, o.high_price, o.low_price, o.close_price
+            FROM fact_crypto_ohlc o
+            JOIN dim_coin c ON o.coin_id = c.coin_id
+            JOIN dim_time t ON o.time_id = t.time_id
+            WHERE c.symbol = ?
+            ORDER BY t.timestamp_utc ASC
+        '''
+        
+        cursor = self.db.connection.cursor()
+        cursor.execute(query, (symbol,))
+        rows = cursor.fetchall()
+        
+        result = []
+        
+        for row in rows:
+            raw_ts = row["timestamp_utc"]
+            
+            if isinstance(raw_ts, str):
+                raw_ts = raw_ts.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(raw_ts)
+
+            else:
+                dt = raw_ts
+            
+            timestamp_ms = int(dt.timestamp() * 1000)
+
+            result.append(
+                {
+                "timestamp" : timestamp_ms,
+                "open" : row["open_price"],
+                "high" : row["high_price"],
+                "low" : row["low_price"],
+                "close" : row["close_price"],
+                }
+            )
+        
+        return result

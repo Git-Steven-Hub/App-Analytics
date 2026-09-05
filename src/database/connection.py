@@ -125,6 +125,26 @@ class DataBase:
                     pass
                 
                 cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS fact_crypto_ohlc (
+                        ohlc_fact_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        coin_id VARCHAR(50) NOT NULL,
+                        time_id INTEGER NOT NULL,
+                        currency_id INTEGER NOT NULL,
+                        open_price REAL NOT NULL CHECK (open_price >= 0),
+                        high_price REAL NOT NULL CHECK (high_price >= 0),
+                        low_price REAL NOT NULL CHECK (low_price >= 0),
+                        close_price REAL NOT NULL CHECK (close_price >= 0),
+                        created_at_utc TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        
+                        FOREIGN KEY (coin_id) REFERENCES dim_coin (coin_id),
+                        FOREIGN KEY (time_id) REFERENCES dim_time (time_id),
+                        FOREIGN KEY (currency_id) REFERENCES dim_currency (currency_id),
+                        
+                        UNIQUE (coin_id, time_id, currency_id)
+                    )
+                ''')
+                
+                cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_fact_coin_time 
                     ON fact_crypto_price (coin_id, time_id)
                 ''')
