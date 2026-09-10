@@ -1,13 +1,16 @@
 import sys
+import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
-from PySide6.QtCore import QObject, Slot, Signal, Property
+from PySide6.QtCore import QObject, Slot, Signal, Property, QThread
+from PySide6.QtCharts import QCandlestickSet
 from database.connection import DataBase
+from workers.ohlcWorker import OhlcWorker
 from database.entities.crypto_entity import CryptoMetricsDTO, PricePointDTO
 import main as pipeline
 
@@ -15,11 +18,14 @@ class CryptoBridge(QObject):
     
     dataUpdated = Signal()
     statusChanged = Signal(str)
+    ohlcDataReady = Signal(list)
     
     def __init__(self):
         super().__init__()
         self.db = DataBase()
         self._status = "Listo"
+        self._thread = None
+        self._worker = None
     
     @Property(str, notify=statusChanged)
     def status(self):
@@ -102,6 +108,44 @@ class CryptoBridge(QObject):
         
         return history
 
+    def process_ohlc_resample(self, raw_ohlc_list: list, freq: str = "1D") -> list:
+        if not raw_ohlc_list:
+            return []
+
+        df = pd.DataFrame(raw_ohlc_list)
+        df["dt"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
+        df.set_index("dt", inplace=True)
+        
+        df_resampled = df.resample(freq).agg(
+            {
+                "open" : "first",
+                "high" : "max",
+                "low" : "min",
+                "close" : "last"
+            }
+        )
+        
+        df_resampled["close"] = df_resampled["close"].ffill()
+        df_resampled["open"] = df_resampled["open"].fillna(df_resampled["close"])
+        df_resampled["high"] = df_resampled["high"].fillna(df_resampled["close"])
+        df_resampled["low"] = df_resampled["low"].fillna(df_resampled["close"])
+        
+        result = []
+        for idx, (dt_idx, row) in enumerate(df_resampled.iterrows()):
+            result.append(
+                {
+                    "index" : idx,
+                    "date_str" : dt_idx.strftime("%d/%m/%Y"),
+                    "timestamp" : int(dt_idx.timestamp() * 1000),
+                    "open" : float(row["open"]),
+                    "high" : float(row["high"]),
+                    "low" : float(row["low"]),
+                    "close" : float(row["close"])
+                }
+            )
+        
+        return result
+
     @Slot(str, result=list)
     def get_ohlc_history(self, symbol: str):
         query = '''
@@ -117,28 +161,44 @@ class CryptoBridge(QObject):
         cursor.execute(query, (symbol,))
         rows = cursor.fetchall()
         
-        result = []
+        raw_result = []
         
         for row in rows:
             raw_ts = row["timestamp_utc"]
             
             if isinstance(raw_ts, str):
                 raw_ts = raw_ts.replace("Z", "+00:00")
-                dt = datetime.fromisoformat(raw_ts)
+                dt = datetime.fromisoformat(raw_ts).replace(tzinfo=timezone.utc)
 
             else:
                 dt = raw_ts
-            
-            timestamp_ms = int(dt.timestamp() * 1000)
 
-            result.append(
+            raw_result.append(
                 {
-                "timestamp" : timestamp_ms,
-                "open" : row["open_price"],
-                "high" : row["high_price"],
-                "low" : row["low_price"],
-                "close" : row["close_price"],
+                "timestamp" : int(dt.timestamp() * 1000),
+                "open" : float(row["open_price"]),
+                "high" : float(row["high_price"]),
+                "low" : float(row["low_price"]),
+                "close" : float(row["close_price"]),
                 }
             )
         
-        return result
+        return self.process_ohlc_resample(raw_result)
+    
+    @Slot(str)
+    def load_ohlc_async(self, symbol: str):
+        self._thread = QThread()
+        self._worker = OhlcWorker(symbol)
+        self._worker.moveToThread(self._thread)
+        
+        self._thread.started.connect(self._worker.run)
+        
+        def on_data_fetched(ohlc_data):
+            self.ohlcDataReady.emit(ohlc_data)
+        
+        self._worker.finished.connect(on_data_fetched)
+        self._worker.finished.connect(self._thread.quit)
+        self._thread.finished.connect(self._worker.deleteLater)
+        self._thread.finished.connect(self._thread.deleteLater)
+        
+        self._thread.start()
