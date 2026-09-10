@@ -15,8 +15,7 @@ ApplicationWindow {
     property string selectedSymbol: "BTC"
 
     function refreshChart() {
-        let ohlcData = cryptoBridge.get_ohlc_history(selectedSymbol)
-        cryptoChart.loadOhlcData(ohlcData)
+        cryptoChart.loadSymbolChart(selectedSymbol)
     }
 
     Behavior on opacity {
@@ -28,7 +27,7 @@ ApplicationWindow {
 
     Component.onCompleted: {
         opacity = 1.0
-        refreshChart()
+        Qt.callLater(refreshChart)
     }
 
     ColumnLayout {
