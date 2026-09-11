@@ -61,27 +61,7 @@ class CoinMarketCapClient:
             with conn:
                 conn.execute(query, (endpoint, json.dumps(payload)))
             
-            print(f"[OK] Payload crudo guardado exitosamente en raw_crypto_responses.")
+            print(f"[OK] Payload crudo guardado en SQLite.")
         
         except Exception as e:
-            print(f"[ERROR] Error al guardar datos crudos en SQLite: {e}")
-
-if __name__ == "__main__":
-    from transformer import CryptoDataTransformer
-    
-    API_KEY = "2bf11b4fb6964f8bb5094eb85a119b5d"
-    
-    client = CoinMarketCapClient(api_key=API_KEY)
-    transformer = CryptoDataTransformer()
-    
-    crypto_symbols = ["BTC", "ETH", "SOL"]
-    response_data = client.fetch_latest_quotes(symbols=crypto_symbols, convert_currencies=["USD"])
-    
-    if response_data:
-        transformer.process_raw_payload(payload=response_data, currency_code="USD")
-        
-        print("\nEjemplo de respuesta obtenida:")
-        
-        btc_info = response_data["data"]["BTC"]
-        print(f"Nombre: {btc_info["name"]}")
-        print(f"Precio (USD): ${btc_info["quote"]["USD"]["price"]:.2f}")
+            print(f"[ERROR] Error al guardar datos localmente: {e}")

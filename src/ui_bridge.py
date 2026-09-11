@@ -8,7 +8,6 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
 from PySide6.QtCore import QObject, Slot, Signal, Property, QThread
-from PySide6.QtCharts import QCandlestickSet
 from database.connection import DataBase
 from workers.ohlcWorker import OhlcWorker
 from database.entities.crypto_entity import CryptoMetricsDTO, PricePointDTO
