@@ -13,6 +13,7 @@ ApplicationWindow {
     opacity: 0.0
 
     property string selectedSymbol: "BTC"
+    property bool isInitialLoad: true
 
     function refreshChart() {
         cryptoChart.loadSymbolChart(selectedSymbol)
@@ -27,7 +28,8 @@ ApplicationWindow {
 
     Component.onCompleted: {
         opacity = 1.0
-        Qt.callLater(refreshChart)
+        cryptoList.model = cryptoBridge.get_latest_prices()
+        refreshChart()
     }
 
     ColumnLayout {
@@ -49,13 +51,14 @@ ApplicationWindow {
 
             Button {
                 id: refreshBtn
-                text: "Actualizar datos"
+                enabled: cryptoBridge.status !== "Synchronizing..." && !cryptoChart.isLoading
+                text: cryptoBridge.status === "Synchronizing..." ? "Procesando..." : "Actualizar datos"
 
                 contentItem: Text {
                     text: refreshBtn.text
                     font.pixelSize: 13
                     font.bold: true
-                    color: "#cdd6f4"
+                    color: refreshBtn.enabled ? "#cdd6f4" : "#6c7086"
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -63,9 +66,9 @@ ApplicationWindow {
                 background: Rectangle {
                     implicitWidth: 140
                     implicitHeight: 36
-                    color: refreshBtn.down ? "#45475a" : (refreshBtn.hovered ? "#313244" : "#181825")
+                    color: !refreshBtn.enabled ? "#11111b" : (refreshBtn.down ? "#45475a" : (refreshBtn.hovered ? "#313244" : "#181825"))
                     radius: 6
-                    border.color: "#585b70"
+                    border.color: refreshBtn.enabled ? "#585b70" : "#313244"
                     border.width: 1
                 }
 
@@ -76,7 +79,7 @@ ApplicationWindow {
         Text {
             text: "Estado: " + cryptoBridge.status
             font.pixelSize: 13
-            color: "#a6adc8"
+            color: cryptoBridge.status.indexOf("Error") !== -1 ? "#f38ba8" : "#a6adc8"
         }
 
         CryptoChart {
@@ -90,7 +93,10 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             selectedSymbol: window.selectedSymbol
-            model: cryptoBridge.get_latest_prices()
+            isChartLoading: window.isInitialLoad ? false : cryptoChart.isLoading
+            isSyncing: cryptoBridge.status === "Synchronizing..."
+            chartOpacity: cryptoChart.chartOpacity
+            model: []
 
             onSymbolSelected: (symbol) => {
                 window.selectedSymbol = symbol
@@ -101,9 +107,20 @@ ApplicationWindow {
 
     Connections {
         target: cryptoBridge
+        
         function onDataUpdated() {
             cryptoList.model = cryptoBridge.get_latest_prices()
             window.refreshChart()
+        }
+    }
+
+    Connections {
+        target: cryptoChart
+
+        function onIsLoadingChanged() {
+            if (!cryptoChart.isLoading && window.isInitialLoad) {
+                window.isInitialLoad = false
+            }
         }
     }
 }

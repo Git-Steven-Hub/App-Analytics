@@ -5,3 +5,39 @@ sources:
     schema: public
     tables:
       - name: raw_crypto_responses
+        columns:
+          - name: raw_id
+            tests:
+              - unique
+              - not_null
+models:
+  - name: stg_coingecko_ohlc
+    columns:
+      - name: symbol
+        tests:
+          - not_null
+      - name: timestamp_ms
+        tests:
+          - not_null
+      
+  - name: fct_ohlc_chart
+    columns:
+      - name: symbol
+        tests:
+          - not_null
+      - name: open
+        tests:
+          - not_null
+      - name: close
+        tests:
+          - not_null
+
+  - name: fct_crypto_quotes
+    columns:
+      - name: symbol
+        tests:
+          - unique
+          - not_null
+      - name: price_usd
+        tests:
+          - not_null

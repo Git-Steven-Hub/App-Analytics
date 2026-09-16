@@ -8,6 +8,10 @@ ListView {
     spacing: 10
 
     property string selectedSymbol: ""
+    property bool isChartLoading: false
+    property bool isSyncing: false
+    property real chartOpacity: 1.0
+
     signal symbolSelected(string symbol)
 
     delegate: Rectangle {
@@ -17,11 +21,17 @@ ListView {
         radius: 8
         border.color: modelData.symbol === selectedSymbol ? "#89b4fa" : "#45477a"
         border.width: modelData.symbol === selectedSymbol ? 2 : 1
+        opacity: root.isSyncing ? 0.6 : (0.6 + (root.chartOpacity * 0.4))
 
         MouseArea {
             anchors.fill: parent
+            enabled: !root.isChartLoading && !root.isSyncing
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ForbiddenCursor
+
             onClicked: {
-                root.symbolSelected(modelData.symbol)
+                if (modelData.symbol !== selectedSymbol) {
+                    root.symbolSelected(modelData.symbol)
+                }
             }
         }
 
@@ -40,7 +50,7 @@ ListView {
                 }
 
                 Text {
-                    text: "Vol 24h: " + modelData.volume_24h
+                    text: "Vol 24h: " + (modelData.volume_24h_usd ?? "0")
                     font.pixelSize: 12
                     color: "#a6adc8"
                 }
@@ -60,7 +70,7 @@ ListView {
                 }
 
                 Text {
-                    text: modelData.market_cap
+                    text: modelData.market_cap_usd ?? "0"
                     font.pixelSize: 13
                     color: "#bac2de"
                     Layout.alignment: Qt.AlignRight
@@ -74,7 +84,7 @@ ListView {
                 Layout.alignment: Qt.AlignRight
 
                 Text {
-                    text: modelData.price
+                    text: modelData.price ?? "0"
                     font.pixelSize: 16
                     font.bold: true
                     color: "#cdd6f4"

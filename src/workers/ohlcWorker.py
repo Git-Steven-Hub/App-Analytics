@@ -1,7 +1,6 @@
 import pandas as pd
-from datetime import datetime, timezone
 from PySide6.QtCore import QObject, Signal
-from database.connection import DataBase
+from database.readers.supabase_reader import SupabaseReader
 
 class OhlcWorker(QObject):
     finished = Signal(list)
@@ -9,41 +8,20 @@ class OhlcWorker(QObject):
     def __init__(self, symbol: str):
         super().__init__()
         self.symbol = symbol
+        self.reader = SupabaseReader()
         
     def run(self):
-        db = DataBase()
-        
-        query = '''
-            SELECT t.timestamp_utc, o.open_price, o.high_price, o.low_price, o.close_price
-            FROM fact_crypto_ohlc o
-            JOIN dim_coin c ON o.coin_id = c.coin_id
-            JOIN dim_time t ON o.time_id = t.time_id
-            WHERE c.symbol = ?
-            ORDER BY t.timestamp_utc ASC
-        '''
-        
-        cursor = db.connection.cursor()
-        cursor.execute(query, (self.symbol,))
-        rows = cursor.fetchall()
+        records = self.reader.get_fct_ohlc_chart(self.symbol)
         
         raw_result = []
-        for row in rows:
-            raw_ts = row["timestamp_utc"]
-            
-            if isinstance(raw_ts, str):
-                raw_ts = raw_ts.replace("Z", "+00:00")
-                dt = datetime.fromisoformat(raw_ts).replace(tzinfo=timezone.utc)
-            
-            else:
-                dt = raw_ts
-            
+        for row in records:
             raw_result.append(
                 {
-                "timestamp" : int(dt.timestamp() * 1000),
-                "open" : float(row["open_price"]),
-                "high" : float(row["high_price"]),
-                "low" : float(row["low_price"]),
-                "close" : float(row["close_price"]),
+                "timestamp" : int(row["timestamp_ms"]),
+                "open" : float(row["open"]),
+                "high" : float(row["high"]),
+                "low" : float(row["low"]),
+                "close" : float(row["close"]),
                 }
             )
         

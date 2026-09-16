@@ -54,3 +54,9 @@ htmlcov/
 secrets.json
 config.json
 .env
+
+# DBT
+target/
+dbt_packages/
+logs/
+.env

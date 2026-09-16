@@ -14,6 +14,6 @@ SELECT DISTINCT ON (symbol, timestamp_ms)
     open_price AS open,
     high_price AS high,
     low_price AS low,
-    close_price AS close,
-FROM stg_ohlc
+    close_price AS close
+FROM clean_stg
 ORDER BY symbol, timestamp_ms ASC, price_timestamp DESC

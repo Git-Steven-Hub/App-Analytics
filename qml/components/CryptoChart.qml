@@ -12,12 +12,11 @@ Rectangle {
     property var rawDataMap: []
     property string currentRangeFilter: "1Y"
     property string pendingSymbol: ""
+    property bool isLoading: false
+    property alias chartOpacity: chartView.opacity
 
     function setAxisXRange(newMinMs, newMaxMs) {
-        if (isNaN(newMinMs) || isNaN(newMaxMs) || newMinMs >= newMaxMs) {
-            console.warn("[CryptoChart] Rango X invalido, se ignora:", newMinMs, newMaxMs)
-            return
-        }
+        if (isNaN(newMinMs) || isNaN(newMaxMs) || newMinMs >= newMaxMs) return
 
         let oldMin = axisX.min.getTime()
         let oldMax = axisX.max.getTime()
@@ -41,17 +40,20 @@ Rectangle {
     }
 
     function loadSymbolChart(symbol) {
-        if (!symbol) return
+        if (!symbol || isLoading) return
 
+        isLoading = true
         pendingSymbol = symbol
 
         if (chartView.opacity === 0.0) {
-            cryptoBridge.load_ohlc_async(symbol)
+            cryptoBridge.load_ohlc_async(pendingSymbol)
             pendingSymbol = ""
         }
         else {
-            fadeOutAnimation.start()
+            fadeOutAnimation.restart()
         }
+
+        fadeOutAnimation.start()
     }
 
     NumberAnimation {
@@ -59,8 +61,12 @@ Rectangle {
         target: chartView
         property: "opacity"
         to: 0.0
-        duration: 120
+        duration: 150
         easing.type: Easing.OutQuad
+
+        onStarted: {
+            root.isLoading = true
+        }
 
         onFinished: {
             if (root.pendingSymbol !== "") {
@@ -75,8 +81,12 @@ Rectangle {
         target: chartView
         property: "opacity"
         to: 1.0
-        duration: 180
+        duration: 150
         easing.type: Easing.OutQuad
+
+        onFinished: {
+            root.isLoading = false
+        }
     }
 
     function setTimeRange(rangeKey) {
@@ -87,8 +97,10 @@ Rectangle {
         let totalCount = rawDataMap.length
         let lastIdx = totalCount - 1
 
-        let maxTs = Number(rawDataMap[lastIdx].timestamp)
-        let minTs = Number(rawDataMap[0].timestamp)
+        let getTs = (item) => Number(item.timestamp_ms ?? item.timestamp ?? 0)
+
+        let maxTs = getTs(rawDataMap[lastIdx])
+        let minTs = getTs(rawDataMap[0])
 
         let dayMs = 24 * 60 * 60 * 1000
         let halfDayMs = 12 * 60 * 60 * 1000
@@ -115,7 +127,11 @@ Rectangle {
 
         setAxisXRange(targetMinTs - halfDayMs, maxTs + halfDayMs)
 
-        let visibleItems = rawDataMap.filter(item => Number(item.timestamp) >= targetMinTs && Number(item.timestamp) <= maxTs)
+        let visibleItems = rawDataMap.filter(item => {
+            let ts = getTs(item)
+            return ts >= targetMinTs && ts <= maxTs
+            }
+        )
 
         if (visibleItems.length > 0) {
             let minPrice = Number(visibleItems[0].low)
@@ -123,10 +139,12 @@ Rectangle {
 
             for (let i = 0;i < visibleItems.length;i ++) {
                 let item = visibleItems[i]
+                let low = Number(item.low)
+                let high = Number(item.high)
+
+                if (!isNaN(low) && low < minPrice) minPrice = low
                 
-                if (Number(item.low) < minPrice) minPrice = Number(item.low)
-                
-                if (Number(item.high) > maxPrice) maxPrice = Number(item.high)
+                if (!isNaN(high) && high > maxPrice) maxPrice = high
             }
 
             let range = maxPrice - minPrice
@@ -151,15 +169,19 @@ Rectangle {
 
             for (let i = 0;i < ohlcData.length; i++) {
                 let item = ohlcData[i]
+                let ts = Number(item.timestamp_ms ?? item.timestamp)
+                let o = Number(item.open)
+                let h = Number(item.high)
+                let l = Number(item.low)
+                let c = Number(item.close)
+
+                if (isNaN(ts) || isNaN(o) || isNaN(h) || isNaN(l) || isNaN(c)) continue
+
                 let setObj = Qt.createQmlObject(
-                    'import QtCharts; CandlestickSet { ' +
-                    'timestamp: ' + Number(item.timestamp) + '; ' +
-                    'open: ' + Number(item.open) + '; ' +
-                    'high: ' + Number(item.high) + '; ' +
-                    'low: ' + Number(item.low) + '; ' +
-                    'close: ' + Number(item.close) + ' }',
+                    `import QtCharts; CandlestickSet { timestamp: ${ts}; open: ${o}; high: ${h}; low: ${l}; close: ${c} }`,
                     candlestickSeries
                 )
+
                 candlestickSeries.append(setObj)
             }
 
@@ -168,7 +190,7 @@ Rectangle {
             root.setTimeRange(root.currentRangeFilter)
 
             let lastIdx = ohlcData.length - 1
-            txtDate.text = ohlcData[lastIdx].date_str
+            txtDate.text = ohlcData[lastIdx].date_str ?? "---"
             txtOpen.text = "O: $" + Number(ohlcData[lastIdx].open).toFixed(2)
             txtHigh.text = "H: $" + Number(ohlcData[lastIdx].high).toFixed(2)
             txtLow.text = "L: $" + Number(ohlcData[lastIdx].low).toFixed(2)
@@ -245,6 +267,24 @@ Rectangle {
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             property point lastMousePos: Qt.point(0, 0)
 
+            function getTs(item) {
+                if (!item) return 0
+                return Number(item.timestamp_ms ?? item.timestamp ?? 0)
+            }
+
+            function getAbsoluteBounds() {
+                if (!root.rawDataMap || root.rawDataMap.length === 0) return [0, 0]
+
+                let halfDaysMs = 12 * 60 * 60 * 1000
+                let firstTs = getTs(root.rawDataMap[0])
+                let lastTs = getTs(root.rawDataMap[root.rawDataMap.length - 1])
+
+                return [
+                    firstTs - halfDaysMs,
+                    lastTs + halfDaysMs
+                ]
+            }
+
             function clampAxisX(newMinMs, newMaxMs, absoluteMin, absoluteMax) {
                 let currentRange = newMaxMs - newMinMs
                 let fullRange = absoluteMax - absoluteMin
@@ -260,23 +300,18 @@ Rectangle {
                     newMaxMs = absoluteMin + currentRange
                 }
 
-                else if (newMaxMs > absoluteMax) {
+                if (newMaxMs > absoluteMax) {
                     newMaxMs = absoluteMax
                     newMinMs = absoluteMax - currentRange
+
+                    if (newMinMs < absoluteMin) {
+                        newMinMs = absoluteMin
+                    }
                 }
 
                 axisX.min = new Date(newMinMs)
                 axisX.max = new Date(newMaxMs)
-            }
-
-            function getAbsoluteBounds() {
-                let halfDaysMs = 12 * 60 * 60 * 1000
-
-                return [
-                    Number(root.rawDataMap[0].timestamp) - halfDaysMs,
-                    Number(root.rawDataMap[root.rawDataMap.length - 1].timestamp) + halfDaysMs
-                ]
-            }
+            }            
 
             onPressed: (mouse) => lastMousePos = Qt.point(mouse.x, mouse.y)
             
@@ -316,6 +351,8 @@ Rectangle {
                 let absoluteMin = bounds[0]
                 let absoluteMax = bounds[1]
 
+                if (absoluteMin === 0 && absoluteMax === 0) return
+
                 let currentMin = axisX.min.getTime()
                 let currentMax = axisX.max.getTime()
                 let currentRange = currentMax - currentMin
@@ -323,10 +360,10 @@ Rectangle {
                 let zoomFactor = wheel.angleDelta.y > 0 ? 0.9 : 1.1
 
                 if (zoomFactor > 1.0) {
-                    let newRange = currentRange * zoomFactor
+                    let proposedRange = currentRange * zoomFactor
                     let fullRange = absoluteMax - absoluteMin
 
-                    if (newRange >= fullRange) {
+                    if (proposedRange >= fullRange) {
                         axisX.min = new Date(absoluteMin)
                         axisX.max = new Date(absoluteMax)
                         return

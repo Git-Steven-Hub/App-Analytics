@@ -5,10 +5,10 @@ WITH raw AS (
         raw_id,
         endpoint,
         payload_json,
-        payload_json->_metadata->>'symbol' AS symbol,
-        payload_json->_metadata->>'coin_id' AS coin_id,
+        payload_json->'_metadata'->>'symbol' AS symbol,
+        payload_json->'_metadata'->>'coin_id' AS coin_id,
         ingested_at_utc
-    FROM {{ source('supabase_war', 'raw_crypto_responses') }}
+    FROM {{ source('supabase_raw', 'raw_crypto_responses') }}
     WHERE endpoint = '/coingecko/ohlc'
 ),
 
@@ -20,7 +20,8 @@ flattened AS (
         (item->>1)::NUMERIC(18, 8) AS open_price,
         (item->>2)::NUMERIC(18, 8) AS high_price,
         (item->>3)::NUMERIC(18, 8) AS low_price,
-        (item->>4)::NUMERIC(18, 8) AS close_price
+        (item->>4)::NUMERIC(18, 8) AS close_price,
+        raw.ingested_at_utc
     FROM raw,
     LATERAL jsonb_array_elements(raw.payload_json->'ohlc_data') AS item
 )
