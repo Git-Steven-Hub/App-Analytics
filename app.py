@@ -1,8 +1,11 @@
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 from PySide6.QtWidgets import QApplication
 from PySide6.QtQuickControls2 import QQuickStyle
 from PySide6.QtQml import QQmlApplicationEngine
+
+load_dotenv()
 
 sys.path.append(str(Path(__file__).resolve().parent / "src"))
 

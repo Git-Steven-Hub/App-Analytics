@@ -63,9 +63,19 @@ class DataBase:
                         raw_id INTEGER PRIMARY KEY AUTOINCREMENT,
                         endpoint VARCHAR(100) NOT NULL,
                         payload_json TEXT NOT NULL,
-                        ingested_at_utc TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        ingested_at_utc TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        synced INTEGER DEFAULT 0 -- 0 = Not uploade, 1 = Uploaded to Supabase
                     )
                 ''')
+                
+                try:
+                    cursor.execute('''
+                        ALTER TABLE raw_crypto_responses 
+                        ADD COLUMN synced DEFAULT 0
+                    ''')
+                
+                except sqlite3.OperationalError:
+                    pass
                 
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS dim_coin (
@@ -118,7 +128,8 @@ class DataBase:
                 
                 try:
                     cursor.execute('''
-                        ALTER TABLE fact_crypto_price ADD COLUMN price_change_pct_7d REAL
+                        ALTER TABLE fact_crypto_price 
+                        ADD COLUMN price_change_pct_7d REAL
                     ''')
                 
                 except sqlite3.OperationalError:

@@ -5,13 +5,17 @@ from database.readers.supabase_reader import SupabaseReader
 class OhlcWorker(QObject):
     finished = Signal(list)
     
-    def __init__(self, symbol: str):
+    def __init__(self, symbol: str, days: int = 365):
         super().__init__()
         self.symbol = symbol
-        self.reader = SupabaseReader()
+        self.days = days
+        self.reader = None
         
     def run(self):
-        records = self.reader.get_fct_ohlc_chart(self.symbol)
+        if self.reader is None:
+            self.reader = SupabaseReader()
+        
+        records = self.reader.get_fct_ohlc_chart(self.symbol, self.days)
         
         raw_result = []
         for row in records:
@@ -57,10 +61,10 @@ class OhlcWorker(QObject):
                     "index" : idx,
                     "date_str" : dt_idx.strftime("%d/%m/%Y"),
                     "timestamp" : int(dt_idx.timestamp() * 1000),
-                    "open" : float(row["open"]),
-                    "high" : float(row["high"]),
-                    "low" : float(row["low"]),
-                    "close" : float(row["close"])
+                    "open" : round(float(row["open"]), 2),
+                    "high" : round(float(row["high"]), 2),
+                    "low" : round(float(row["low"]), 2),
+                    "close" : round(float(row["close"]), 2)
                 }
             )
         

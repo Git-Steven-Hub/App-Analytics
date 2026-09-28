@@ -1,5 +1,3 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from database.readers.supabase_reader import SupabaseReader
 from database.entities.crypto_entity import CryptoMetricsDTO
 
@@ -38,7 +36,7 @@ class CryptoRepository:
                     volume_24h_raw=float(row.get("volume_24h_usd")) if row.get("volume_24h_usd") is not None else None,
                     change_24h_raw=float(c_24h) if c_24h is not None else 0.0,
                     change_7d_raw=float(c_7d) if c_7d is not None else 0.0,
-                    last_updated=str(row.get("updated_at") or row.get("ingested_at_utc") or "")
+                    last_updated=str(row.get("price_timestamp") or row.get("ingested_at_utc") or "")
                 )
                     
                 metrics.append(dto.to_dict())

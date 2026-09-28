@@ -3,6 +3,7 @@
 WITH clean_stg AS (
     SELECT *
     FROM {{ ref('stg_cmc_quotes') }}
+    WHERE price_usd IS NOT NULL
 )
 
 SELECT DISTINCT ON (symbol)
@@ -14,7 +15,7 @@ SELECT DISTINCT ON (symbol)
     volume_24h_usd,
     pct_change_24h,
     pct_change_7d,
-    price_timestamp,
+    COALESCE (price_timestamp, ingested_at_utc) AS price_timestamp,
     ingested_at_utc
 FROM clean_stg
-ORDER BY symbol, price_timestamp DESC NULLS LAST, ingested_at_utc DESC
+ORDER BY symbol, COALESCE(price_timestamp, ingested_at_utc) DESC

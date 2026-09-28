@@ -29,11 +29,14 @@ class SupabaseSyncer:
         cursor.execute('''
             SELECT raw_id, endpoint, payload_json, ingested_at_utc
             FROM raw_crypto_responses
+            WHERE synced = 0 OR synced IS NULL
         ''')
 
         rows = cursor.fetchall()
         
         records = []
+        pending_ids = []
+        
         for row in rows:
             records.append(
                 {
@@ -45,4 +48,14 @@ class SupabaseSyncer:
         
         if records:
             self.supabase.table("raw_crypto_responses").insert(records).execute()
+            
+            cursor.execute(f'''
+                UPDATE raw_crypto_responses
+                SET synced = 1
+                WHERE raw_id IN ({','.join('?' for _ in pending_ids)})
+                ''',
+                pending_ids
+            )
+            conn.commit()
+            
             print(f"[OK] {len(records)} payloads crudos subidos a Supabase.")

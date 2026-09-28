@@ -2,42 +2,58 @@ version: 2
 
 sources:
   - name: supabase_raw
+    description: "Capa staging cruda alojada en Supabase."
     schema: public
     tables:
       - name: raw_crypto_responses
+        description: "Tabla Landing con las respuestas JSON."
         columns:
           - name: raw_id
+            description: "Clave primaria autogenerada para cada payload."
             tests:
               - unique
               - not_null
 models:
   - name: stg_coingecko_ohlc
+    description: "Modelo staging que aplana y limpia el array JSON."
     columns:
       - name: symbol
+        description: "Ticket o simbolo del criptoactivo."
         tests:
           - not_null
       - name: timestamp_ms
+        description: "Fecha y hora en formato Epoch."
         tests:
           - not_null
-      
+  
+  - name: stg_cmc_quotes
+    description: "Modelo staging que extrae las cotizaciones en tiempo real."
+
   - name: fct_ohlc_chart
+    description: "Tabla de hechos refinada para el gráfico OHLC histórico."
     columns:
       - name: symbol
+        description: "Símbolo formateado en mayúsculas."
         tests:
           - not_null
       - name: open
+        description: "Precio apertura de la vela."
         tests:
           - not_null
       - name: close
+        description: "Precio de cierre de la vela."
         tests:
           - not_null
 
   - name: fct_crypto_quotes
+    description: "Tabla hechos con la última cotización válida y métricas."
     columns:
       - name: symbol
+        description: "Clave única identificadora de la cripto."
         tests:
           - unique
           - not_null
       - name: price_usd
+        description: "Último precio registrado en dólares."
         tests:
           - not_null

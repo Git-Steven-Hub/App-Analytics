@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -18,13 +19,17 @@ class SupabaseReader:
 
         self.client: Client = create_client(url, key)
     
-    def get_fct_ohlc_chart(self, symbol: str) -> list[dict[str, Any]]:
+    def get_fct_ohlc_chart(self, symbol: str, days: int = 365) -> list:
         try:
+            cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            
             response = (
                 self.client.schema("analytics")
                 .table("fct_ohlc_chart")
                 .select("*")
-                .eq("symbol", symbol)
+                .eq("symbol", symbol.upper())
+                .gte("price_timestamp", cutoff_date)
+                .order("timestamp_ms", desc=False)
                 .execute()
             )
             return response.data

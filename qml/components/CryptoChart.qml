@@ -12,7 +12,7 @@ Rectangle {
     property var rawDataMap: []
     property string currentRangeFilter: "1Y"
     property string pendingSymbol: ""
-    property bool isLoading: false
+    property bool isLoading: true
     property alias chartOpacity: chartView.opacity
 
     function setAxisXRange(newMinMs, newMaxMs) {
@@ -40,14 +40,18 @@ Rectangle {
     }
 
     function loadSymbolChart(symbol) {
-        if (!symbol || isLoading) return
+        if (!symbol) return
+
+        if (isLoading && pendingSymbol === symbol) return
+
+        fadeOutAnimation.stop()
+        fadeInAnimation.stop()
 
         isLoading = true
         pendingSymbol = symbol
 
-        if (chartView.opacity === 0.0) {
-            cryptoBridge.load_ohlc_async(pendingSymbol)
-            pendingSymbol = ""
+        if (chartView.opacity === 0.05) {
+            cryptoBridge.load_ohlc_async(pendingSymbol, 365)
         }
         else {
             fadeOutAnimation.restart()
@@ -60,8 +64,8 @@ Rectangle {
         id: fadeOutAnimation
         target: chartView
         property: "opacity"
-        to: 0.0
-        duration: 150
+        to: 0.05
+        duration: 180
         easing.type: Easing.OutQuad
 
         onStarted: {
@@ -70,8 +74,7 @@ Rectangle {
 
         onFinished: {
             if (root.pendingSymbol !== "") {
-                cryptoBridge.load_ohlc_async(root.pendingSymbol)
-                root.pendingSymbol = ""
+                cryptoBridge.load_ohlc_async(root.pendingSymbol, 365)
             }
         }
     }
@@ -81,11 +84,16 @@ Rectangle {
         target: chartView
         property: "opacity"
         to: 1.0
-        duration: 150
-        easing.type: Easing.OutQuad
+        duration: 350
+        easing.type: Easing.OutCubic
+
+        onStarted: {
+            chartView.visible = true
+        }
 
         onFinished: {
             root.isLoading = false
+            root.pendingSymbol = ""
         }
     }
 
@@ -155,6 +163,12 @@ Rectangle {
         }
     }
 
+    Component {
+        id: candlestickFactory
+        
+        CandlestickSet {}
+    }
+
     Connections {
         target: cryptoBridge
 
@@ -167,36 +181,59 @@ Rectangle {
             root.rawDataMap = ohlcData
             candlestickSeries.clear()
 
-            for (let i = 0;i < ohlcData.length; i++) {
-                let item = ohlcData[i]
-                let ts = Number(item.timestamp_ms ?? item.timestamp)
-                let o = Number(item.open)
-                let h = Number(item.high)
-                let l = Number(item.low)
-                let c = Number(item.close)
+            let chunkSize = 35
+            let index = 0
 
-                if (isNaN(ts) || isNaN(o) || isNaN(h) || isNaN(l) || isNaN(c)) continue
+            function processBatch() {
+                let limit = Math.min(index + chunkSize, ohlcData.length)
+                
+                for (; index < limit; index++) {
+                    let item = ohlcData[index]
+                    let ts = Number(item.timestamp_ms ?? item.timestamp)
+                    let o = Number(item.open)
+                    let h = Number(item.high)
+                    let l = Number(item.low)
+                    let c = Number(item.close)
 
-                let setObj = Qt.createQmlObject(
-                    `import QtCharts; CandlestickSet { timestamp: ${ts}; open: ${o}; high: ${h}; low: ${l}; close: ${c} }`,
-                    candlestickSeries
-                )
+                    if (isNaN(ts) || isNaN(o) || isNaN(h) || isNaN(l) || isNaN(c)) continue
 
-                candlestickSeries.append(setObj)
+                    let setObj = candlestickFactory.createObject(candlestickSeries, 
+                        {
+                        "timestamp": ts,
+                        "open": o,
+                        "high": h,
+                        "low": l,
+                        "close": c
+                        }
+                    )
+
+                    if (setObj) {
+                        candlestickSeries.append(setObj)
+                    }
+                }
+
+                if (index < ohlcData.length) {
+                    Qt.callLater(processBatch)
+                } 
+                else {
+                    Qt.callLater(() => {
+                        root.setTimeRange(root.currentRangeFilter)
+
+                        let lastIdx = ohlcData.length - 1
+                        txtDate.text = ohlcData[lastIdx].date_str ?? "---"
+                        txtOpen.text = "O: $" + Number(ohlcData[lastIdx].open).toFixed(2)
+                        txtHigh.text = "H: $" + Number(ohlcData[lastIdx].high).toFixed(2)
+                        txtLow.text = "L: $" + Number(ohlcData[lastIdx].low).toFixed(2)
+                        txtClose.text = "C: $" + Number(ohlcData[lastIdx].close).toFixed(2)
+
+                        fadeOutAnimation.stop()
+                        renderDelayTimer.start()
+                        }
+                    )
+                }
             }
 
-            console.log("[CryptoChart] Velas construidas de forma segura en GUI Thread:", ohlcData.length)
-
-            root.setTimeRange(root.currentRangeFilter)
-
-            let lastIdx = ohlcData.length - 1
-            txtDate.text = ohlcData[lastIdx].date_str ?? "---"
-            txtOpen.text = "O: $" + Number(ohlcData[lastIdx].open).toFixed(2)
-            txtHigh.text = "H: $" + Number(ohlcData[lastIdx].high).toFixed(2)
-            txtLow.text = "L: $" + Number(ohlcData[lastIdx].low).toFixed(2)
-            txtClose.text = "C: $" + Number(ohlcData[lastIdx].close).toFixed(2)
-
-            renderDelayTimer.start()
+            processBatch()
         }
     }
 
@@ -475,5 +512,11 @@ Rectangle {
                 onClicked: root.setTimeRange(filterBtn.modelData)
             }
         }
+    }
+
+    LoadingSkeleton {
+        id: chartSkeleton
+        isLoading: root.isLoading
+        pendingSymbol: root.pendingSymbol
     }
 }
