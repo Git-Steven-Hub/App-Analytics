@@ -9,24 +9,17 @@ El proyecto implementa arquitectura moderna de **Analytics Engineering (ETL)** c
 ## Arquitectura del Sistema
 
 **[APIs Externas] (CoinMarketCap / CoinGecko)**
-                |
-                ▼
-
+|
+▼
 **[Python Pipeline] (Extract & Load)**
-
-                |
-                ▼
-
+|
+▼
 **[Supabase PostgreSQL] (Landing: public.raw_crypto_responses)**
-
-                |
-                ▼
-
+|
+▼
 **[dbt Transformations] (Staging Views ──> Fact Tables en esquema analytics)**
-
-                |
-                ▼
-
+|
+▼
 **[PySide6 / QML UI] (Async Workers + Reader Services)**
 
 1. **Ingesta (Extract & Load):** Python consume las APIs de CoinMarketCap y CoinGecko y guarda la respuesta JSON cruda en Supabase (`raw_crypto_responses`) utilizando permisos de servidor (`service_role`).
