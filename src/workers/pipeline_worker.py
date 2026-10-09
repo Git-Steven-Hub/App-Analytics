@@ -4,14 +4,14 @@ import main as pipeline
 class PipelineWorker(QObject):
     finished = Signal()
     error = Signal(str)
+    warning = Signal(str)
     
     def run(self):
         
         try:
-            print("\n [WORKER THREAD] Iniciando pipeline asíncrono...")
-            pipeline.run_pipeline()
+            pipeline.run_pipeline(progress_callback=self.warning.emit)
             self.finished.emit()
         
         except Exception as e:
-            print(f"[WORKER THREAD ERROR] {e}")
-            self.error.emit(str(e))
+            print(f"{e}")
+            self.error.emit("Error al guardar datos en el servidor.")

@@ -1,7 +1,10 @@
-import json
 import requests
+import os
 from typing import Optional, Any
-from database.connection import DataBase
+from dotenv import load_dotenv
+from supabase import create_client, Client
+
+load_dotenv()
 
 class CoinMarketCapClient:
     """
@@ -17,13 +20,15 @@ class CoinMarketCapClient:
             "X-CMC_PRO_API_KEY" : self.api_key,
         }
         
-        self.db = DataBase()
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+        
+        if not supabase_url or not supabase_key:
+            raise ValueError("Credenciales de Supabase no encontradas.")
+        
+        self.supabase_client: Client = create_client(supabase_url, supabase_key)
         
     def fetch_latest_quotes(self, symbols: list[str], convert_currencies: list[str] = ["USD"]) -> Optional[dict[str, Any]]:
-        """
-        Consulta las últimas cotizacion para una lista de símbolos ['BTC', 'ETH']
-        Guarda automáticamente la respuesta cruda en SQLite3
-        """ 
         
         endpoint = "/cryptocurrency/quotes/latest"
         url = f"{self.BASE_URL}{endpoint}"
@@ -43,25 +48,16 @@ class CoinMarketCapClient:
             return data
         
         except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Falló la petición a CoinMarketCap: {e}")
-            return None
+            raise RuntimeError(f"Error in API: {e}")
     
     def _save_raw_response(self, endpoint: str, payload: dict[str, Any]) -> None:
-        """
-        Guarda la respuesta JSON original en la tabla raw_crypto_responses
-        """
-        
-        query = '''
-            INSERT INTO raw_crypto_responses (endpoint, payload_json)
-            VALUES (?, ?)
-        '''
+        data = {
+            "endpoint": endpoint,
+            "payload_json": payload
+        }
         
         try:
-            conn = self.db.connection
-            with conn:
-                conn.execute(query, (endpoint, json.dumps(payload)))
-            
-            print(f"[OK] Payload crudo guardado en SQLite.")
+            self.supabase_client.table("raw_crypto_responses").insert(data).execute()
         
         except Exception as e:
-            print(f"[ERROR] Error al guardar datos localmente: {e}")
+            raise RuntimeError(f"Error in save data to Supabase: {e}")

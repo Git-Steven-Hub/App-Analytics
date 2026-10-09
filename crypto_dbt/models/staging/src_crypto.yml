@@ -57,3 +57,17 @@ models:
         description: "Último precio registrado en dólares."
         tests:
           - not_null
+
+  - name: fct_ohlc_indicators
+    description: "Tabla de hechos con indicadores técnicos y métricas móviles."
+    columns:
+      - name: symbol
+        tests:
+          - not_null
+      - name: close
+        tests:
+          - not_null
+      - name: sma_20
+        description: "Promedio móvil simple de 20 días sobre el precio de cierre."
+      - name: sma_50
+        description: "Promedio móvil simple de 50 días sobre el precio de cierre."

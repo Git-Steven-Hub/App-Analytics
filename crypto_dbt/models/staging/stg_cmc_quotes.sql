@@ -1,33 +1,42 @@
-{{ config(materialized="view") }}
+{{ config(
+    materialized="view",
+    post_hook="ALTER VIEW {{ this }} SET (security_invoker = true);"
+    ) 
+}}
 
-WITH raw AS (
+WITH latest_raw AS (
     SELECT
-        raw_id,
-        payload_json,
+        payload_json::jsonb AS payload_json,
         ingested_at_utc
     FROM {{ source('supabase_raw', 'raw_crypto_responses') }}
     WHERE endpoint = '/cryptocurrency/quotes/latest'
+    ORDER BY ingested_at_utc DESC
+    LIMIT 1
 ),
 
-extracted_coins AS (
+flattened AS (
     SELECT
-        raw_id,
-        ingested_at_utc,
-        coin_kv.key AS symbol,
-        coin_kv.value AS coin_data
-    FROM raw,
-    LATERAL jsonb_each(raw.payload_json->'data') AS coin_kv
+        (data.value->>'symbol')::TEXT AS symbol,
+        (data.value->>'name')::TEXT AS coin_name,
+        (data.value->'quote'->'USD'->>'price')::NUMERIC(18, 8) AS current_price,
+        (data.value->'quote'->'USD'->>'percent_change_24h')::NUMERIC(10, 4) AS change_24h,
+        (data.value->'quote'->'USD'->>'percent_change_7d')::NUMERIC(10, 4) AS change_7d,
+        (data.value->'quote'->'USD'->>'market_cap')::NUMERIC(20, 2) AS market_cap,
+        (data.value->'quote'->'USD'->>'volume_24h')::NUMERIC(20, 2) AS volume_24h,
+        raw.ingested_at_utc
+    FROM latest_raw raw,
+    LATERAL jsonb_each(raw.payload_json->'data') AS data
 )
 
 SELECT
-    raw_id,
     UPPER(symbol) AS symbol,
-    coin_data->>'name' AS coin_name,
-    (coin_data->'quote'->'USD'->>'price')::NUMERIC(18, 8) AS price_usd,
-    (coin_data->'quote'->'USD'->>'market_cap')::NUMERIC(18, 2) AS market_cap_usd,
-    (coin_data->'quote'->'USD'->>'volume_24h')::NUMERIC(18, 2)AS volume_24h_usd,
-    (coin_data->'quote'->'USD'->>'percent_change_24h')::NUMERIC(10, 4) AS pct_change_24h,
-    (coin_data->'quote'->'USD'->>'percent_change_7d')::NUMERIC(10, 4) AS pct_change_7d,
-    (coin_data->'quote'->'USD'->>'last_updated')::TIMESTAMPTZ AS price_timestamp,
-    ingested_at_utc
-FROM extracted_coins
+    coin_name,
+    current_price,
+    change_24h,
+    change_7d,
+    market_cap,
+    volume_24h,
+    ingested_at_utc,
+    DATE_TRUNC('day', ingested_at_utc) AS day_utc,
+    FLOOR(EXTRACT(EPOCH FROM DATE_TRUNC('day', ingested_at_utc)) * 1000)::BIGINT AS timestamp_ms
+FROM flattened

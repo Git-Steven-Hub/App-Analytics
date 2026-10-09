@@ -1,15 +1,20 @@
-{{ config(materialized="view") }}
+{{ config(
+    materialized="view",
+    post_hook="ALTER VIEW {{ this }} SET (security_invoker = true);"
+    ) 
+}}
 
-WITH raw AS (
-    SELECT
+WITH latest_raw AS (
+    SELECT DISTINCT ON (payload_json->'_metadata'->>'symbol')
         raw_id,
         endpoint,
-        payload_json,
+        payload_json::jsonb AS payload_json,
         payload_json->'_metadata'->>'symbol' AS symbol,
         payload_json->'_metadata'->>'coin_id' AS coin_id,
         ingested_at_utc
     FROM {{ source('supabase_raw', 'raw_crypto_responses') }}
     WHERE endpoint = '/coingecko/ohlc'
+    ORDER BY (payload_json->'_metadata'->>'symbol'), ingested_at_utc DESC
 ),
 
 flattened AS (
@@ -22,7 +27,7 @@ flattened AS (
         (item->>3)::NUMERIC(18, 8) AS low_price,
         (item->>4)::NUMERIC(18, 8) AS close_price,
         raw.ingested_at_utc
-    FROM raw,
+    FROM latest_raw raw,
     LATERAL jsonb_array_elements(raw.payload_json->'ohlc_data') AS item
 )
 

@@ -1,22 +1,23 @@
 import QtQuick
 import QtQuick.Controls
+import "../theme"
 
 Rectangle {
     id: root
 
     property string message: ""
     property bool isError: false
-    property int duration: 4000
+    property int duration: 3500
 
     visible: false
-    width: Math.min(parent.width * 0.8, 400)
+    width: Math.min(parent.width * 0.8, 420)
     height: 45
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.top: parent.top
     anchors.topMargin: visible ? 20 : -height
 
     radius: 8
-    color: isError ? "#DC2626" : "#059669"
+    color: isError ? Style.danger : Style.primary
     opacity: visible ? 0.95 : 0.0
 
     Behavior on anchors.topMargin {
@@ -28,7 +29,7 @@ Rectangle {
 
     Behavior on opacity {
         NumberAnimation {
-            duration: 300
+            duration: 250
         }
     }
 
@@ -38,13 +39,13 @@ Rectangle {
 
         Text {
             text: root.isError ? "⚠️" : "✓"
-            color: "white"
+            color: Style.textDark
             font.pixelSize: 16
         }
 
         Text {
             text: root.message
-            color: "white"
+            color: Style.textDark
             font.pixelSize: 13
             font.bold: true
         }

@@ -7,8 +7,10 @@ import "components"
 ApplicationWindow {
     id: window
     visible: true
-    width: 1920
-    height: 1080
+    width: Math.min(Screen.desktopAvailableWidth * 0.85, 1400)
+    height: Math.min(Screen.desktopAvailableHeight * 0.85, 800)
+    minimumWidth: 1024
+    minimumHeight: 650
     title: "Crypto Analytics Dashboard"
     color: "#1e1e2e"
     opacity: 0.0
@@ -21,7 +23,7 @@ ApplicationWindow {
 
     Notification {
         id: toast
-        z: 999
+        z: 9999
     }
 
     Timer {
@@ -58,6 +60,22 @@ ApplicationWindow {
         id: main
         anchors.fill: parent
         visible: true
+        opacity: window.isAppLoading ? 0.0 : 1.0
+        scale: window.isAppLoading ? 0.98 : 1.0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 300
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: 300
+                easing.type: Easing.OutCubic
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -76,95 +94,33 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
-                Button {
+                AppButton {
                     id: refreshBtn
 
-                    property bool isProcessing: cryptoBridge.status === "Synchronizing..."
-
-                    enabled: !isProcessing && !cryptoChart.isAppLoading
-                    implicitWidth: 140
-                    implicitHeight: 36
-
-                    contentItem: RowLayout {
-                        spacing: 8
-                        anchors.centerIn: parent
-
-                        Item {
-                            implicitWidth: 14
-                            implicitHeight: 14
-                            visible: refreshBtn.isProcessing
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: width / 2
-                                color: "transparent"
-                                border.color: "#89b4fa"
-                                border.width: 2
-
-                                Rectangle {
-                                    width: 5
-                                    height: 5
-                                    color: "#181825"
-                                    anchors.top: parent.top
-                                    anchors.right: parent.right
-                                }
-
-                                RotationAnimation on rotation {
-                                    running: refreshBtn.isProcessing
-                                    from: 0
-                                    to: 360
-                                    duration: 800
-                                    loops: Animation.Infinite
-                                }
-                            }
-                        }
-
-                        Text {
-                            text: refreshBtn.isProcessing ? "Syncing..." : "Update data"
-                            font.pixelSize: 13
-                            font.bold: true
-                            color: refreshBtn.enabled ? "#cdd6f4" : "#a6adc8"
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
-
-                    background: Rectangle {
-                        color: !refreshBtn.enabled ? "#11111b" : (refreshBtn.down ? "#45475a" : (refreshBtn.hovered ? "#313244" : "#181825"))
-                        radius: 6
-                        border.color: refreshBtn.enabled ? "#585b70" : "#313244"
-                        border.width: 1
-
-                        Behavior on color {
-                            ColorAnimation { 
-                                duration: 150 
-                            }
-                        }
-                    }
+                    text: isProcessing ? "Syncing..." : "Update data"
+                    isProcessing: cryptoBridge.status === "Synchronizing..."
+                    enabled: !isProcessing && !cryptoChart.isLoading && !window.isAppLoading
 
                     onClicked: {
-                        toast.showNotification("Stating data synchronization...", false)
                         cryptoBridge.refresh_pipeline()
                     }
                 }
             }
 
-            Text {
-                text: "State: " + cryptoBridge.status
-                font.pixelSize: 13
-                color: cryptoBridge.status.indexOf("Error") !== -1 ? "#f38ba8" : "#a6adc8"
-            }
-
             CryptoChart {
                 id: cryptoChart
                 Layout.fillWidth: true
-                Layout.preferredHeight: 500
+                Layout.fillHeight: true
+                Layout.minimumHeight: 320
+                Layout.verticalStretchFactor: 3
             }
 
             CryptoListView {
                 id: cryptoList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumHeight: 180
+                Layout.verticalStretchFactor: 2
                 selectedSymbol: window.selectedSymbol
                 isChartLoading: window.isAppLoading
                 isSyncing: cryptoBridge.status === "Synchronizing..."
@@ -243,6 +199,7 @@ ApplicationWindow {
         
         function onDataUpdated() {
             cryptoBridge.load_initial_quotes()
+            cryptoChart.loadSymbolChart(window.selectedSymbol)
             window.refreshChart()
         }
 

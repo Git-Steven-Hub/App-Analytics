@@ -1,6 +1,5 @@
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -19,13 +18,15 @@ class SupabaseReader:
 
         self.client: Client = create_client(url, key)
     
-    def get_fct_ohlc_chart(self, symbol: str, days: int = 365) -> list:
+    def get_fct_ohlc_indicators(self, symbol: str, days: int = 365) -> list:
         try:
-            cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            start_of_day = (datetime.now(timezone.utc) - timedelta(days=days)).replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            cutoff_date = start_of_day.isoformat()
             
             response = (
                 self.client.schema("analytics")
-                .table("fct_ohlc_chart")
+                .table("fct_ohlc_indicators")
                 .select("*")
                 .eq("symbol", symbol.upper())
                 .gte("price_timestamp", cutoff_date)
@@ -34,8 +35,7 @@ class SupabaseReader:
             )
             return response.data
         except Exception as e:
-            print(f"[ERROR SupabaseReader] Error al consultar fct_ohlc_chart: {e}")
-            return []
+            raise RuntimeError(f"Error fetching OHLC indicators: {e}")
     
     def get_fct_crypto_quotes(self):
         response = self.client.table("fct_crypto_quotes").select("*").execute()

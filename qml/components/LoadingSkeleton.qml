@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../theme"
 
 Rectangle {
     id: badge
@@ -16,8 +17,8 @@ Rectangle {
     implicitWidth: loadingRow.implicitWidth + 24
     implicitHeight: 28
     radius: 14
-    color: "#313244"
-    border.color: "#89b4fa"
+    color: Style.bgCard
+    border.color: Style.primary
     border.width: 1
     visible: opacity > 0
     opacity: isVisible ? 1.0 : 0.0
@@ -53,13 +54,13 @@ Rectangle {
                 anchors.fill: parent
                 radius: width / 2
                 color: "transparent"
-                border.color: "#89b4fa"
+                border.color: Style.primary
                 border.width: 2
 
                 Rectangle {
                     width: 6
                     height: 6
-                    color: "#313244"
+                    color: Style.bgCard
                     anchors.top: parent.top
                     anchors.right: parent.right
                 }
@@ -76,7 +77,7 @@ Rectangle {
 
         Text {
             text: badge.pendingSymbol !== "" ? "Loading " + badge.pendingSymbol + "..." : "Loading..."
-            color: "#cdd6f4"
+            color: Style.textMain
             font.pixelSize: 11
             font.bold: true
         }

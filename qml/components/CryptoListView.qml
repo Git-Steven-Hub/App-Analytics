@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../theme"
 
 Item {
     id: wrapper
@@ -28,22 +29,22 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 70
                 radius: 8
-                color: "#313244"
+                color: Style.bgCard
 
                 SequentialAnimation on color {
                     running: root.count === 0
                     loops: Animation.Infinite
 
                     ColorAnimation {
-                        from: "#212234"
-                        to: "#45475a"
+                        from: Style.gridLine
+                        to: Style.borderBase
                         duration: 800
                         easing.type: Easing.InOutQuad
                     }
 
                     ColorAnimation { 
-                        from: "#45475a"
-                        to: "#212234"
+                        from: Style.borderBase
+                        to: Style.gridLine
                         duration: 800
                         easing.type: Easing.InOutQuad
                     }
@@ -68,9 +69,9 @@ Item {
 
             width: root.width
             height: 70
-            color: isSelected ? "#45475a" : (isHovered ? "#3b3d54" : "#313244")
+            color: isSelected ? Style.borderBase: (isHovered ? Style.bgCardHover : Style.bgCard)
             radius: 8
-            border.color: isSelected ? "#89b4fa" : (isHovered ? "#585b70" : "#45477a")
+            border.color: isSelected ? Style.primary : (isHovered ? Style.borderActive : Style.borderBase)
             border.width: isSelected ? 2 : 1
             opacity: wrapper.isSyncing ? 0.6 : (0.6 + (wrapper.chartOpacity * 0.4))
 
@@ -114,13 +115,13 @@ Item {
                         text: modelData.name + " (" + modelData.symbol + ")"
                         font.pixelSize: 16
                         font.bold: true
-                        color: "#cdd6f4"
+                        color: Style.textMain
                     }
 
                     Text {
                         text: "Vol 24h: " + (modelData.volume_24h_usd ?? "0")
                         font.pixelSize: 12
-                        color: "#a6adc8"
+                        color: Style.textMain
                     }
                 }
 
@@ -133,14 +134,14 @@ Item {
                     Text {
                         text: "Market Cap"
                         font.pixelSize: 11
-                        color: "#6c7086"
+                        color: Style.textSubtle
                         Layout.alignment: Qt.AlignRight
                     }
 
                     Text {
                         text: modelData.market_cap_usd ?? "0"
                         font.pixelSize: 13
-                        color: "#bac2de"
+                        color: Style.textMuted
                         Layout.alignment: Qt.AlignRight
                     }
                 }
@@ -155,7 +156,7 @@ Item {
                         text: modelData.price ?? "0"
                         font.pixelSize: 16
                         font.bold: true
-                        color: "#cdd6f4"
+                        color: Style.textMain
                         Layout.alignment: Qt.AlignRight
                     }
 
@@ -167,14 +168,14 @@ Item {
                             text: "24h: " + modelData.change_24h
                             font.pixelSize: 12
                             font.bold: true
-                            color: modelData.is_positive ? "#a6e3a1" : "#f38ba8"
+                            color: modelData.is_positive ? Style.success : Style.danger
                         }
 
                         Text {
                             text: "7d: " + modelData.change_7d
                             font.pixelSize: 12
                             font.bold: true
-                            color: "#bac2de"
+                            color: Style.textMuted
                         }
                     }
                 }

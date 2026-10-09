@@ -5,9 +5,6 @@ class CryptoRepository:
     
     def __init__(self, reader: SupabaseReader):
         self.reader = reader
-        
-    def get_ohlc_data(self, symbol: str) -> list[dict]:
-        return self.reader.get_fct_ohlc_chart(symbol)
     
     def get_lastest_quotes(self) -> list[dict]:
         try:
@@ -44,5 +41,4 @@ class CryptoRepository:
             return metrics
 
         except Exception as e:
-            print(f"[ERROR CryptoRepository] Error al obtener quotes: {e}")
-            return []
+            raise RuntimeError(f"Error fetching latest quotes: {e}")

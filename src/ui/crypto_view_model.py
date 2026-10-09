@@ -9,6 +9,7 @@ class CryptoViewModel(QObject):
     quotesReady = Signal(list)
     statusChanged = Signal(str)
     ohlcDataReady = Signal(list)
+    ohlcError = Signal(str)
     errorMessage = Signal(str)
     successMessage = Signal(str)
     
@@ -83,14 +84,24 @@ class CryptoViewModel(QObject):
 
         def on_data_fetched(ohlc_data):
             self.ohlcDataReady.emit(ohlc_data)
+            
+        def on_ohlc_failed(error_msg):
+            self._status = f"Error OHLC: {error_msg}"
+            self.statusChanged.emit(self._status)
+            self.ohlcError.emit(error_msg)
         
         def cleanup_ohlc():
             self._ohlc_thread = None
             self._ohlc_worker = None
 
         self._ohlc_worker.finished.connect(on_data_fetched)
+        self._ohlc_worker.error.connect(on_ohlc_failed)
+        
         self._ohlc_worker.finished.connect(self._ohlc_thread.quit)
-        self._ohlc_worker.deleteLater()
+        self._ohlc_worker.error.connect(lambda _: self._ohlc_thread.quit())
+        
+        self._ohlc_worker.finished.connect(self._ohlc_worker.deleteLater)
+        self._ohlc_worker.error.connect(lambda _: self._ohlc_worker.deleteLater())
         
         self._ohlc_thread.finished.connect(self._ohlc_thread.deleteLater)
         self._ohlc_thread.finished.connect(cleanup_ohlc)
@@ -110,6 +121,8 @@ class CryptoViewModel(QObject):
         
         self._status = "Synchronizing..."
         self.statusChanged.emit(self._status)
+        
+        self.successMessage.emit("Starting data synchronization...")
         
         self._pipeline_thread = QThread()
         self._pipeline_worker = PipelineWorker()
@@ -137,9 +150,11 @@ class CryptoViewModel(QObject):
         self._status = "Ready"
         self.statusChanged.emit(self._status)
         self.dataUpdated.emit()
-        self.successMessage.emit("Data successfully updated")
+        
+        self.successMessage.emit("¡Data successfully updated!")
     
     def _on_pipeline_error(self, error_msg: str):
         self._status = f"Error: {error_msg}"
         self.statusChanged.emit(self._status)
-        self.errorMessage.emit(f"Error synchronizing data: {error_msg}")
+        
+        self.errorMessage.emit(f"Sync failed: {error_msg}")

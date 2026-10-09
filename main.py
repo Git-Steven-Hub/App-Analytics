@@ -2,20 +2,23 @@ import sys
 import os
 import subprocess
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.append(str(Path(__file__).resolve().parent / "src"))
 
 from src.api_connector import CoinMarketCapClient
-from src.supabase_syncer import SupabaseSyncer
 from historical_backfill import run_historical_backfill
 
-def run_pipeline():
+def run_pipeline(progress_callback=None):
     """
-    Ejecuta extract & load (EL)
+    Ejecuta el pipeline completo: Ingesta directa (EL) + Trasnformacion dbt (T)
     """
     
     # Carga credenciales
     api_key = os.getenv("CMC_API_KEY")
+    
     if not api_key:
         raise ValueError("[ERROR] La variable CMC_API_KEY no está definida")
     
@@ -24,11 +27,7 @@ def run_pipeline():
     crypto_symbols = ["BTC", "ETH", "SOL"]
     client.fetch_latest_quotes(symbols=crypto_symbols)
     
-    run_historical_backfill(days="1")
-    
-    syncer = SupabaseSyncer()
-    syncer.sync_all()
-    
+    run_historical_backfill(days="365", progress_callback=progress_callback)
     run_dbt_transformations()
 
 def run_dbt_transformations():

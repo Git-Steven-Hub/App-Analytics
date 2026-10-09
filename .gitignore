@@ -8,6 +8,7 @@ __pycache__/
 *.py[codz]
 *$py.class
 *.so
+*.pyc
 .Python
 env/
 venv/
@@ -44,6 +45,7 @@ lottietoqml
 .history/
 
 # Logs
+logs/
 *.log
 *.temp
 .coverage
@@ -54,9 +56,14 @@ htmlcov/
 secrets.json
 config.json
 .env
+.env.*
+*.env
 
 # DBT
 target/
 dbt_packages/
-logs/
-.env
+crypto_dbt/target/
+crypto_dbt/logs/
+
+# Supabase
+supabase/.temp/

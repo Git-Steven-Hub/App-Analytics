@@ -1,54 +1,59 @@
-{{ config(materialized="table") }}
+{{ config(
+    materialized="table",
+    post_hook=[
+        "ALTER TABLE {{ this }} ENABLE ROW LEVEL SECURITY;",
+        "DROP POLICY IF EXISTS public_read_policy ON {{ this }};",
+        "CREATE POLICY public_read_policy ON {{ this }} FOR SELECT TO anon, authenticated USING (true);"
+        ]
+    ) 
+}}
 
-WITH clean_stg AS (
-    SELECT *
-    FROM {{ ref("stg_coingecko_ohlc") }}
-),
-
-daily_grouped AS (
+WITH historical_ohlc AS (
     SELECT
         symbol,
-        coin_id,
+        timestamp_ms,
+        price_timestamp,
         DATE_TRUNC('day', price_timestamp) AS day_utc,
-        MIN(price_timestamp) AS min_ts,
-        MAX(price_timestamp) AS max_ts,
-        MAX(high_price) AS high,
-        MIN(low_price) AS low
-    FROM clean_stg
-    GROUP BY symbol, coin_id, DATE_TRUNC('day', price_timestamp)
+        open_price,
+        high_price,
+        low_price,
+        close_price
+    FROM {{ ref('stg_coingecko_ohlc') }}
 ),
 
-open_prices AS (
-    SELECT DISTINCT ON (symbol, DATE_TRUNC('day', price_timestamp))
+today_quote AS (
+    SELECT
         symbol,
-        DATE_TRUNC('day', price_timestamp) AS day_utc,
-        open_price AS open
-    FROM clean_stg
-    ORDER BY symbol, DATE_TRUNC('day', price_timestamp), price_timestamp ASC
+        timestamp_ms,
+        ingested_at_utc AS price_timestamp,
+        day_utc,
+        current_price AS open_price,
+        current_price AS high_price,
+        current_price AS low_price,
+        current_price AS close_price
+    FROM {{ ref('stg_cmc_quotes') }}
 ),
 
-close_prices AS (
-    SELECT DISTINCT ON (symbol, DATE_TRUNC('day', price_timestamp))
-        symbol,
-        DATE_TRUNC('day', price_timestamp) AS day_utc,
-        close_price AS close
-    FROM clean_stg
-    ORDER BY symbol, DATE_TRUNC('day', price_timestamp), price_timestamp DESC
+combined AS (
+    SELECT * FROM historical_ohlc
+    UNION ALL
+    SELECT t.*
+    FROM today_quote t
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM historical_ohlc h 
+        WHERE h.symbol = t.symbol AND h.day_utc = t.day_utc
+    )
 )
 
-SELECT 
-    dg.symbol,
-    dg.coin_id,
-    EXTRACT(EPOCH FROM dg.day_utc)::BIGINT * 1000 AS timestamp_ms,
-    dg.day_utc AS price_timestamp,
-    TO_CHAR(dg.day_utc, 'DD/MM/YYYY') AS date_str,
-    op.open,
-    dg.high,
-    dg.low,
-    cp.close
-FROM daily_grouped dg
-JOIN open_prices op
-    ON dg.symbol = op.symbol AND dg.day_utc = op.day_utc
-JOIN close_prices cp
-    ON dg.symbol = cp.symbol AND dg.day_utc = cp.day_utc
-ORDER BY dg.symbol, dg.day_utc ASC
+SELECT
+    symbol,
+    timestamp_ms,
+    price_timestamp,
+    day_utc,
+    open_price AS open,
+    high_price AS high,
+    low_price AS low,
+    close_price AS close
+FROM combined
+ORDER BY symbol, timestamp_ms ASC
