@@ -58,6 +58,7 @@ config.json
 .env
 .env.*
 *.env
+!.env.example
 
 # DBT
 target/
