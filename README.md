@@ -17,7 +17,9 @@ El proyecto implementa arquitectura moderna de **Analytics Engineering (ETL)** c
 
 |
 ▼
+
 **[Supabase PostgreSQL] (Landing: public.raw_crypto_responses)**
+
 |
 ▼
 
